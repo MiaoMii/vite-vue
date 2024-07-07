@@ -1,17 +1,20 @@
-import {createApp} from 'vue'
-import './style.css'
-import App from './App.vue'
-import {setupStore} from "./store";
-import { setupElComponent } from "./plugins/ElComponent";
+import { createApp } from "vue";
+import "./style.css";
+import App from "./App.vue";
+import { setupStore } from "./store";
+import { setupPlugins } from "./plugins";
+import { setupRouter } from "./router";
 
 function setupApp() {
-    const app = createApp(App)
+  const app = createApp(App);
 
-    app.mount('#app')
+  setupStore(app);
 
-    setupStore(app)
+  setupRouter(app);
 
-    setupElComponent(app)
+  setupPlugins(app);
+
+  app.mount("#app");
 }
 
-setupApp()
+setupApp();
