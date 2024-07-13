@@ -2,6 +2,7 @@
   <div ref="drawingArea" class="drawing-area" @click="handleClick">
     <svg id="svg-container" width="500" height="500">
       <line
+        :id="`line${l}`"
         v-for="(lin, l) in lineList"
         :key="l"
         :x1="lin.x"
@@ -11,7 +12,16 @@
         stroke="black"
         stroke-width="2"
       >
-        <animate attributeName="stroke-dasharray" from="0,1000" to="1000,0" dur="5s" repeatCount="indefinite" />
+        <!--          :dur="`${(l + 1) * 5}`"-->
+
+        <animate
+          attributeType="XML"
+          dur="2s"
+          :begin="l === 0 ? '0s' : `1s;line${l - 1}.end`"
+          attributeName="stroke-dasharray"
+          from="0,200"
+          to="200,0"
+        />
       </line>
     </svg>
     <!--    <svg width="400" height="300">-->
@@ -48,6 +58,7 @@
     <!--    </svg>-->
   </div>
   <button @click="save" style="position: absolute; left: 0; top: 20px">保存</button>
+  <button @click="clear" style="position: absolute; left: 0; top: 40px">清除</button>
 
   <!--  <svg width="500" height="300">-->
   <!--    <polyline id="line"-->
@@ -121,25 +132,35 @@
   <!--    </polyline>-->
   <!--  </svg>-->
 
-  <svg width="800" height="800">
-    <rect width="200" height="200" fill="#000" stroke="#7FFF00" stroke-width="2" fill-opacity="0.5"></rect>
+  <!--  <svg width="800" height="800">-->
+  <!--    <rect width="200" height="200" fill="#000" stroke="#7FFF00" stroke-width="2" fill-opacity="0.5"></rect>-->
 
-    <br />
-  </svg>
+  <!--    <br />-->
+  <!--  </svg>-->
 
-  <svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink">
-    <defs>
-      <path id="path1" d="M75,20 a1,1 0 0,0 100,0" />
-    </defs>
-    <text x="10" y="100" style="fill: red">
-      <textPath xlink:href="#path1">I love SVG I love SVG</textPath>
-    </text>
-  </svg>
+  <!--  <svg xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink">-->
+  <!--    <defs>-->
+  <!--      <path id="path1" d="M75,20 a1,1 0 0,0 100,0" />-->
+  <!--    </defs>-->
+  <!--    <text x="10" y="100" style="fill: red">-->
+  <!--      <textPath xlink:href="#path1">I love SVG I love SVG</textPath>-->
+  <!--    </text>-->
+  <!--  </svg>-->
 
-  <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">
-    <rect width="10" height="10">
-      <animate attributeName="rx" values="0;5;0" dur="10s" repeatCount="indefinite" />
-    </rect>
+  <!--  <svg viewBox="0 0 10 10" xmlns="http://www.w3.org/2000/svg">-->
+  <!--    <rect width="10" height="10">-->
+  <!--      <animate attributeName="rx" values="0;5;0" dur="10s" repeatCount="indefinite" />-->
+  <!--    </rect>-->
+  <!--  </svg>-->
+
+  <!--  顶一个动画结束后渲染第二个 -->
+  <svg width="500" height="500">
+    <line id="line1" x1="10" y1="10" x2="100" y2="10" stroke="black" stroke-width="2">
+      <animate attributeName="x2" from="10" to="200" dur="2s" fill="freeze" begin="0s" />
+    </line>
+    <line id="line2" x1="200" y1="10" x2="200" y2="10" stroke="black" stroke-width="2">
+      <animate attributeName="x2" from="200" to="390" dur="2s" fill="freeze" begin="line1.end" />
+    </line>
   </svg>
 </template>
 
@@ -186,8 +207,10 @@
     sessionStorage.getItem("lineArr") && (lineArr.value = JSON.parse(sessionStorage.getItem("lineArr") as string));
   });
   const save = () => {
-    console.log("进入了");
     sessionStorage.setItem("lineArr", JSON.stringify(lineArr.value));
+  };
+  const clear = () => {
+    sessionStorage.removeItem("lineArr");
   };
 </script>
 
