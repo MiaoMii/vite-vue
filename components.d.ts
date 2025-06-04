@@ -8,7 +8,6 @@ export {}
 declare module 'vue' {
   export interface GlobalComponents {
     AppProvider: typeof import('./src/components/common/app-provider.vue')['default']
-    ElCascader: typeof import('element-plus/es')['ElCascader']
     HelloWorld: typeof import('./src/components/HelloWorld.vue')['default']
     LearnCanvas: typeof import('./src/components/learnCanvas.vue')['default']
     NDialogProvider: typeof import('naive-ui')['NDialogProvider']
