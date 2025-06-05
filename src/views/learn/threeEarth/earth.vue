@@ -435,66 +435,37 @@
           const type = feature.geometry.type;
           const coordinates = feature.geometry.coordinates;
 
-          // 为每个 feature 创建材质
-          const material = new THREE.MeshPhongMaterial({
-            color: Math.random() * 0xffffff, // 为每个省份随机颜色
+          // 为每个省份创建线条材质
+          const lineMaterial = new THREE.LineBasicMaterial({
+            color: 0x00ffff, // 青色线条
             transparent: true,
             opacity: 0.8,
-            // side: THREE.DoubleSide, // 如果是平面，可能需要双面
+            linewidth: 1
           });
 
           if (type === "Polygon") {
             coordinates.forEach((polygonCoords: any[]) => {
-              const shapePoints: THREE.Vector2[] = [];
-              // 注意：GeoJSON 的 Polygon 的第一个环是外边界，后续是孔洞
-              // 为了简化，这里只处理外边界，并且假设坐标已经是 [lon, lat]
-              // 实际应用中，需要正确处理孔洞和坐标顺序
-              polygonCoords.forEach((coord: number[]) => {
-                // 将经纬度点转换为 Vector2D，为 Shape 做准备
-                // 这个转换对于直接在球面上创建 Mesh 不是必须的，
-                // 而是用于 THREE.Shape, 如果你想用它来挤压或创建平面形状
-                shapePoints.push(new THREE.Vector2(coord[0], coord[1]));
-              });
-
-              // 创建 Mesh (更推荐的方式是直接用转换后的3D点创建 BufferGeometry)
               const points3D: THREE.Vector3[] = [];
               polygonCoords.forEach((coord: number[]) => {
-                points3D.push(lonLatToVector3(coord[0], coord[1]));
+                points3D.push(lonLatToVector3(coord[0], coord[1], EARTH_RADIUS + 0.001)); // 略微抬高以避免z-fighting
               });
 
               if (points3D.length > 2) {
-                // 使用点创建自定义几何体
-                // 这里需要进行三角化，例如使用 THREE.ShapeUtils.triangulateShape
-                // 或者更简单地，如果 GeoJSON 已经是三角化好的，或者我们只画轮廓线
+                // 创建线条
+                const lineGeometry = new THREE.BufferGeometry().setFromPoints(points3D);
+                const line = new THREE.Line(lineGeometry, lineMaterial);
+                geoJsonGroup.add(line);
 
-                // 示例：创建线条代表边界
-                // const lineGeometry = new THREE.BufferGeometry().setFromPoints(points3D);
-                // const lineMaterial = new THREE.LineBasicMaterial({ color: 0xffffff });
-                // const line = new THREE.Line(lineGeometry, lineMaterial);
-                // geoJsonGroup.add(line);
-
-                // 示例：创建 Mesh (需要三角化)
-                // 对于简单的凸多边形，可以直接用 ShapeGeometry，但它是在2D平面上
-                // 要贴合球面，需要更复杂的处理
-                // 一个简化的方法是创建多个小的三角形Mesh，或者使用专门的库
-
-                // 尝试使用 d3-geo 进行投影和三角化 (如果已引入)
-                // const projection = d3
-                //   .geoOrthographic()
-                //   .scale(EARTH_RADIUS) // D3的scale可能需要调整
-                //   .translate([0, 0])
-                //   .clipAngle(90);
-
-                // 将 GeoJSON feature 转换为 THREE.js 对象
-                // 这通常需要一个辅助函数，如 three-geojson-geometry 或类似逻辑
-                // 下面是一个非常简化的概念，实际渲染多边形到球体需要更鲁棒的方法
-
-                // 假设我们为每个省份创建一个简单的标记点在其质心
+                // 如果需要，添加省份标记点
                 if (feature.properties && feature.properties.cp) {
-                  // cp 通常是质心坐标
-                  const centroid3D = lonLatToVector3(feature.properties.cp[0], feature.properties.cp[1]);
-                  const markerGeo = new THREE.SphereGeometry(0.02, 16, 16);
-                  const marker = new THREE.Mesh(markerGeo, material);
+                  const centroid3D = lonLatToVector3(
+                    feature.properties.cp[0],
+                    feature.properties.cp[1],
+                    EARTH_RADIUS + 0.002
+                  );
+                  const markerGeo = new THREE.SphereGeometry(0.005, 8, 8);
+                  const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+                  const marker = new THREE.Mesh(markerGeo, markerMaterial);
                   marker.position.copy(centroid3D);
                   geoJsonGroup.add(marker);
                 }
@@ -503,39 +474,42 @@
           } else if (type === "MultiPolygon") {
             coordinates.forEach((multiPolygonCoords: any[][]) => {
               multiPolygonCoords.forEach((polygonCoords: any[]) => {
-                // 与 Polygon类似处理，但有多层嵌套
                 const points3D: THREE.Vector3[] = [];
                 polygonCoords.forEach((coord: number[]) => {
-                  points3D.push(lonLatToVector3(coord[0], coord[1]));
+                  points3D.push(lonLatToVector3(coord[0], coord[1], EARTH_RADIUS + 0.001));
                 });
-                // ... (类似Polygon的处理，创建线条或标记)
-                if (points3D.length > 2 && feature.properties && feature.properties.cp) {
-                  const centroid3D = lonLatToVector3(
-                    feature.properties.cp[0],
-                    feature.properties.cp[1],
-                    EARTH_RADIUS + 0.01,
-                  ); // 稍微抬高一点
-                  const markerGeo = new THREE.SphereGeometry(0.02, 16, 16);
-                  const marker = new THREE.Mesh(markerGeo, material);
-                  marker.position.copy(centroid3D);
-                  geoJsonGroup.add(marker);
+
+                if (points3D.length > 2) {
+                  // 创建线条
+                  const lineGeometry = new THREE.BufferGeometry().setFromPoints(points3D);
+                  const line = new THREE.Line(lineGeometry, lineMaterial);
+                  geoJsonGroup.add(line);
                 }
               });
             });
+
+            // 为 MultiPolygon 添加一个中心标记
+            if (feature.properties && feature.properties.cp) {
+              const centroid3D = lonLatToVector3(
+                feature.properties.cp[0],
+                feature.properties.cp[1],
+                EARTH_RADIUS + 0.002
+              );
+              const markerGeo = new THREE.SphereGeometry(0.005, 8, 8);
+              const markerMaterial = new THREE.MeshBasicMaterial({ color: 0xffff00 });
+              const marker = new THREE.Mesh(markerGeo, markerMaterial);
+              marker.position.copy(centroid3D);
+              geoJsonGroup.add(marker);
+            }
           }
         }
       });
 
-      // 将整个 GeoJSON 组添加到地球模型上 (earthMesh 或其父 group)
-      // 如果 earthMesh 是地球本身，并且你希望 GeoJSON 内容随地球旋转，则添加到 earthMesh.parent (即 earthGroup)
-      // 或者直接添加到 scene，然后手动同步旋转
-      if (earthMesh && earthMesh.parent) {
-        earthMesh.parent.add(geoJsonGroup);
-      } else {
-        scene.add(geoJsonGroup);
-      }
+      // 将地图添加到地球组，这样就会跟随地球旋转
+      earthGroup.add(geoJsonGroup);
+
     } catch (error) {
-      console.error("Failed to load or draw GeoJSON:", error);
+      console.error("Error loading or drawing GeoJSON:", error);
     }
   }
 </script>
