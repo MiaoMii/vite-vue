@@ -172,8 +172,8 @@
         map.add(province);
       });
       // map.position.set(0, 0, 0);
-      map.scale.set(0.1, 0.1, 0.1);
-      // map.rotation.set(THREE.MathUtils.degToRad(-90), 0, THREE.MathUtils.degToRad(20));
+      // map.scale.set(0.1, 0.1, 0.1);
+      map.rotation.set(THREE.MathUtils.degToRad(-90), 0, THREE.MathUtils.degToRad(20));
       scene.add(map);
       setMouseEvent();
     }
