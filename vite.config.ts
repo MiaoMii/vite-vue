@@ -30,6 +30,9 @@ export default defineConfig({
       },
     },
   },
+  server: {
+    host: "0.0.0.0",
+  },
   resolve: {
     // ↓路径别名，主要是这部分
     alias: {

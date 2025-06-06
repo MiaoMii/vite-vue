@@ -23,7 +23,7 @@
   const height = ref(window.innerHeight);
   let scene: THREE.Scene;
   let stars: THREE.Points;
-
+  const radius = 100; // 地球半径
   /**
    * 地球
    **/
@@ -35,9 +35,12 @@
       initScene();
       initLight();
       initControls();
-      createStarField();
+      //   createStarField();
       createEarth();
-      loadAndDrawGeoJSON(`https://geo.datav.aliyun.com/areas_v3/bound/${100000}_full.json`);
+      createAreaPoint();
+      createLightCone();
+      createFlyLine();
+      // loadAndDrawGeoJSON(`https://geo.datav.aliyun.com/areas_v3/bound/${100000}_full.json`);
       animate();
       window.addEventListener("resize", onWindowResize, false);
     });
@@ -161,31 +164,31 @@
     window.requestAnimationFrame(() => {
       if (controls.value) controls.value.update();
 
-      stars.rotation.y += 0.0002;
-      // earthMesh.rotation.y += 0.002;
-      // lightsMesh.rotation.y += 0.002;
+      //   stars.rotation.y += 0.0002;
+      //   earthMesh.rotation.y += 0.002;
+      //   lightsMesh.rotation.y += 0.002;
 
-      // 更新卫星的位置，使其绕轨道旋转
-      satelliteAngle += 0.01; // 控制旋转速度
+      //   // 更新卫星的位置，使其绕轨道旋转
+      //   satelliteAngle += 0.01; // 控制旋转速度
 
-      // 更新卫星1的位置
-      const satellite1X = Math.cos(satelliteAngle) * satelliteOrbitRadius;
-      const satellite1Y = 0; // 假设轨道在XY平面，Y为0，可以根据需要调整
-      const satellite1Z = Math.sin(satelliteAngle) * satelliteOrbitRadius;
-      if (satellite1) {
-        satellite1.position.set(satellite1X, satellite1Y, satellite1Z);
-        // 让卫星朝向轨道中心（地球）
-        // satellite1.lookAt(earthMesh.position);
-        // 或者，如果想让它沿着轨道切线方向，需要更复杂的计算或使用辅助对象
-      }
+      //   // 更新卫星1的位置
+      //   const satellite1X = Math.cos(satelliteAngle) * satelliteOrbitRadius;
+      //   const satellite1Y = 0; // 假设轨道在XY平面，Y为0，可以根据需要调整
+      //   const satellite1Z = Math.sin(satelliteAngle) * satelliteOrbitRadius;
+      //   if (satellite1) {
+      //     satellite1.position.set(satellite1X, satellite1Y, satellite1Z);
+      //     // 让卫星朝向轨道中心（地球）
+      //     // satellite1.lookAt(earthMesh.position);
+      //     // 或者，如果想让它沿着轨道切线方向，需要更复杂的计算或使用辅助对象
+      //   }
 
-      // 更新卫星2的位置，使其在轨道的另一侧
-      const satellite2X = Math.cos(satelliteAngle + Math.PI) * satelliteOrbitRadius;
-      const satellite2Y = 0; // 假设轨道在XY平面
-      const satellite2Z = Math.sin(satelliteAngle + Math.PI) * satelliteOrbitRadius;
-      if (satellite2) {
-        satellite2.position.set(satellite2X, satellite2Y, satellite2Z);
-      }
+      //   // 更新卫星2的位置，使其在轨道的另一侧
+      //   const satellite2X = Math.cos(satelliteAngle + Math.PI) * satelliteOrbitRadius;
+      //   const satellite2Y = 0; // 假设轨道在XY平面
+      //   const satellite2Z = Math.sin(satelliteAngle + Math.PI) * satelliteOrbitRadius;
+      //   if (satellite2) {
+      //     satellite2.position.set(satellite2X, satellite2Y, satellite2Z);
+      //   }
 
       renders();
       animate();
@@ -280,101 +283,110 @@
 
     scene.add(stars);
   }
+  var areas = [
+    {
+      name: "中国",
+      position: [116.2, 39.55],
+    },
+    {
+      name: "中非共和国",
+      position: [18.35, 4.23],
+    },
+    {
+      name: "智利",
+      position: [-70.4, -33.24],
+    },
+    {
+      name: "乍得",
+      position: [14.59, 12.1],
+    },
+    {
+      name: "赞比亚",
+      position: [28.16, -15.28],
+    },
+    {
+      name: "越南",
+      position: [105.55, 21.05],
+    },
+    {
+      name: "约旦",
+      position: [35.52, 31.57],
+    },
+    {
+      name: "英属维尔京群岛",
+      position: [-64.37, 18.27],
+    },
+    {
+      name: "英国",
+      position: [-0.05, 51.36],
+    },
+  ];
+
+  // 坐标转换，
+  function createPosition(lnglat) {
+    let spherical = new THREE.Spherical();
+    spherical.radius = radius;
+    const lng = lnglat[0];
+    const lat = lnglat[1];
+    const theta = (lng + 90) * (Math.PI / 180);
+    const phi = (90 - lat) * (Math.PI / 180);
+    spherical.phi = phi; // phi是方位面（水平面）内的角度，范围0~360度
+    spherical.theta = theta; // theta是俯仰面（竖直面）内的角度，范围0~180度
+    let position = new THREE.Vector3();
+    position.setFromSpherical(spherical);
+    return position;
+  }
+
+  function createAreaPoint() {
+    // 球面
+    let sphereGeom = new THREE.SphereGeometry(1, 20, 20),
+      sphereMat = new THREE.MeshBasicMaterial({
+        color: 0x03d98e,
+        wireframe: true,
+      });
+    let sphere = new THREE.Mesh(sphereGeom, sphereMat);
+    scene.add(sphere);
+    // 地标及光锥
+    for (let i = 0, length = areas.length; i < length; i++) {
+      const position = createPosition(areas[i].position);
+      createHexagon(position); // 地标
+    }
+  }
+
+  // 创建地标标记
+  function createHexagon(position) {
+    var hexagon = new THREE.Object3D();
+    let hexagonLine = new THREE.CircleGeometry(4, 6);
+    let hexagonPlane = new THREE.CircleGeometry(3, 6);
+    // let vertices = hexagonLine.vertices;
+    // vertices.shift(); // 第一个节点是中心点
+    let material = new THREE.MeshBasicMaterial({
+      color: 0xffff00,
+      side: THREE.DoubleSide,
+      opacity: 0.5,
+    });
+    let circleLine = new THREE.LineLoop(hexagonLine, material);
+    let circlePlane = new THREE.Mesh(hexagonPlane, material);
+    circleLine.position.copy(position);
+    circlePlane.position.copy(position);
+    circlePlane.lookAt(new THREE.Vector3(0, 0, 0));
+    circleLine.lookAt(new THREE.Vector3(0, 0, 0));
+
+    hexagon.add(circleLine);
+    hexagon.add(circlePlane);
+    scene.add(hexagon);
+  }
 
   /**
    * 地球
    **/
   function createEarth() {
-    earthGroup = new THREE.Group();
-    earthGroup.rotation.z = (-23.4 * Math.PI) / 180; // 地轴倾斜
-    // 在这里尝试增加一个Y轴的初始旋转来校准纹理和GeoJSON
-    // const textureLongitudeOffset = Math.PI; // 尝试不同的值，例如 Math.PI, -Math.PI/2, 0.1 etc.
-    // earthGroup.rotation.y = textureLongitudeOffset;
-
-    scene.add(earthGroup);
-
-    const radius = EARTH_RADIUS;
-    const detail = 12;
-    const loader = new THREE.TextureLoader();
-    const geometry = new THREE.IcosahedronGeometry(1, detail);
-    const material = new THREE.MeshPhongMaterial({
-      map: loader.load("/src/assets/map/texture/00_earthmap1k.jpg"),
-      specularMap: loader.load("/src/assets/map/texture/02_earthspec1k.jpg"),
-      bumpMap: loader.load("/src/assets/map/texture/01_earthbump1k.jpg"),
-      bumpScale: 0.04,
-    });
-    // material.map.colorSpace = THREE.SRGBColorSpace;
-    earthMesh = new THREE.Mesh(geometry, material);
-    earthGroup.add(earthMesh);
-
-    const lightsMat = new THREE.MeshBasicMaterial({
-      map: loader.load("/src/assets/map/texture/03_earthlights1k.jpg"),
-      blending: THREE.AdditiveBlending,
-    });
-    lightsMesh = new THREE.Mesh(geometry, lightsMat);
-    earthGroup.add(lightsMesh);
-
-    // 假设你已经加载了模型并知道模型的大小
-    const boundingBox = new THREE.Box3().setFromObject(earthGroup); // 获取模型的包围盒
-
-    const center = new THREE.Vector3();
-    boundingBox.getCenter(center); // 获取模型的中心点
-    const size = boundingBox.getSize(new THREE.Vector3()); // 获取模型的大小
-
-    // 根据模型的大小设置相机的位置
-    const distance = size.length() * 1.5; // 使用模型大小的1.5倍作为距离
-    camera.value!.position.set(center.x, center.y, center.z + distance); // 相机位置放置在模型前方
-    camera.value!.lookAt(center); // 让相机注视模型的中心
-
-    // 加载地球的大气层
-    // const radius = 1; // 地球的半径
-    // 加载大气层
-    const atmosphereTexture = new THREE.TextureLoader().load("/src/assets/map/texture/atmosphere.png");
-    const spriteMaterial = new THREE.SpriteMaterial({
-      map: atmosphereTexture,
-      transparent: true,
-      opacity: 0.5,
-      depthWrite: false,
-    });
-    const sprite = new THREE.Sprite(spriteMaterial);
-    sprite.scale.set(radius * 3, radius * 3, 1);
-    earthGroup.add(sprite);
-
-    // 加载卫星轨道
-    const trackGroup = new THREE.Group();
-    const trackTexture = new THREE.TextureLoader().load("/src/assets/map/texture/track.png");
-    const trackGeometry = new THREE.PlaneGeometry(satelliteOrbitRadius * 2.1, satelliteOrbitRadius * 2.1); // 让轨道比卫星轨道稍大
-    const trackMaterial = new THREE.MeshLambertMaterial({
-      map: trackTexture,
-      transparent: true,
-      side: THREE.DoubleSide,
-      depthWrite: false,
-    });
-    const trackMesh = new THREE.Mesh(trackGeometry, trackMaterial);
-    // 调整轨道平面的朝向，使其与卫星的运动平面一致
-    // 如果卫星在XY平面绕Z轴旋转，轨道可以保持默认或者旋转至XY平面
-    trackMesh.rotation.x = Math.PI / 2; // 例如，如果轨道在XZ平面，卫星绕Y轴转
-    trackGroup.add(trackMesh);
-
-    // 两颗卫星 - 改为 Mesh 对象
-    const satelliteTexture = new THREE.TextureLoader().load("/src/assets/map/texture/salPointer.png");
-    // 如果 salPointer.png 是一个点状纹理，用于Sprite可能更合适，或者用简单的几何体
-    const satelliteGeometry = new THREE.SphereGeometry(0.05, 8, 8); // 使用小球体代表卫星
-    const satelliteMaterial = new THREE.MeshBasicMaterial({ map: satelliteTexture });
-
-    satellite1 = new THREE.Mesh(satelliteGeometry, satelliteMaterial);
-    satellite2 = new THREE.Mesh(satelliteGeometry, satelliteMaterial);
-
-    trackGroup.add(satellite1);
-    trackGroup.add(satellite2);
-
-    // earthPoints 不再需要，因为我们用单独的 satellite1 和 satellite2 Mesh
-    // earthPoints = new THREE.Points(satelliteGeometry, satelliteMaterial);
-    // earthPoints.rotation.set(1.9, 0.5, 1);
-    // trackGroup.add(earthPoints);
-
-    trackGroup.rotation.set(1.9, 0.5, 1); // 轨道的旋转，根据需要调整
-    scene.add(trackGroup);
+    const geometry = new THREE.SphereGeometry(radius, 32, 32); // 半径为50，水平和垂直分段各32
+    const textureLoader = new THREE.TextureLoader();
+    const texture = textureLoader.load("/src/assets/map/texture/00_earthmap1k.jpg"); // 确保路径正确，可以使用如NASA提供的地球纹理
+    const material = new THREE.MeshBasicMaterial({ map: texture });
+    const sphere = new THREE.Mesh(geometry, material);
+    scene.add(sphere);
   }
 
   /**
@@ -415,11 +427,11 @@
   // 函数：将经纬度转换为球体上的3D坐标
   function lonLatToVector3(lon: number, lat: number, radius: number = EARTH_RADIUS) {
     const phi = (90 - lat) * (Math.PI / 180);
-    const theta = lon * (Math.PI / 180); // <--- 修改点：移除了 +180 的偏移
+    const theta = (lon + 180) * (Math.PI / 180);
 
-    const x = radius * Math.sin(phi) * Math.cos(theta); // <--- 修改点：移除了 x 前的负号
-    const y = radius * Math.cos(phi);
+    const x = -(radius * Math.sin(phi) * Math.cos(theta));
     const z = radius * Math.sin(phi) * Math.sin(theta);
+    const y = radius * Math.cos(phi);
 
     return new THREE.Vector3(x, y, z);
   }
@@ -515,6 +527,45 @@
     } catch (error) {
       console.error("Error loading or drawing GeoJSON:", error);
     }
+  }
+
+  // 创建光柱
+  function createLightCone() {
+    const beamMaterial = new THREE.ShaderMaterial({
+      vertexShader: `
+        varying vec3 vWorldPosition;
+        void main() {
+            vWorldPosition = position;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }
+    `,
+      fragmentShader: `
+        uniform vec3 color;
+        varying vec3 vWorldPosition;
+        void main() {
+            float intensity = pow(0.7 - dot(normalize(vWorldPosition), vec3(0.0, 1.0, 0.0)), 12.0);
+            gl_FragColor = vec4(color, intensity);
+        }
+    `,
+      uniforms: { color: { value: new THREE.Color(0xff0000) } },
+      side: THREE.BackSide, // 使光柱只在地球背面显示
+    });
+
+    const beamGeometry = new THREE.PlaneGeometry(10, 100); // 根据需要调整大小和长度
+    const beam = new THREE.Mesh(beamGeometry, beamMaterial);
+    beam.rotation.x = -Math.PI / 2; // 使光柱水平放置
+    scene.add(beam);
+  }
+
+  // 创建飞线
+  function createFlyLine() {
+    const points = [];
+    points.push(new THREE.Vector3(-5, 0, 0)); // 开始点，相对于地球中心的位置
+    points.push(new THREE.Vector3(5, 0, 0)); // 结束点，相对于地球中心的位置
+    const beamLineGeometry = new THREE.BufferGeometry().setFromPoints(points);
+    const beamLineMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 }); // 绿色激光线
+    const beamLine = new THREE.Line(beamLineGeometry, beamLineMaterial);
+    scene.add(beamLine);
   }
 </script>
 
